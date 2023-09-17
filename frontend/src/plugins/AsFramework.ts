@@ -20,19 +20,19 @@ export function initializeWidget(props: any) {
     }
 
     const postAction = async (type: string, data: any = undefined) => {
-        // const fetchResponse = await fetch("/api/action", {
-        //     method: "POST",
-        //     body: JSON.stringify({
-        //         "viewmodelId": viewmodelId.value,
-        //         "widgetId": widgetId,
-        //         "type": type,
-        //         "data": data
-        //     })
-        // });
-        // if (fetchResponse.status != 200 || fetchResponse.body == null)
-        //     return Promise.reject("server unexpected response");
-        // const response = (await fetchResponse.json()) as ApiViewResponse;
-        const response = { viewmodelId: "123", widgetsData: { "yyyyy": { "text": "world" } } };
+        const fetchResponse = await fetch("/api/action", {
+            method: "POST",
+            body: JSON.stringify({
+                "viewmodelId": viewmodelId.value,
+                "widgetId": widgetId,
+                "type": type,
+                "data": data
+            })
+        });
+        if (fetchResponse.status != 200 || fetchResponse.body == null)
+            return Promise.reject("server unexpected response");
+        const response = (await fetchResponse.json()) as ApiViewResponse;
+        // const response = { viewmodelId: "123", widgetsData: { "yyyyy": { "text": "world" } } };
         applyWidgetsData(response.widgetsData);
     };
 
@@ -50,14 +50,14 @@ export function initializeView() {
     }
 
     const mounted = async () => {
-        // const fetchResponse = await fetch("/api/view/" + viewName, {
-        //     method: "POST",
-        //     body: JSON.stringify({ "viewmodelId": viewmodelId })
-        // });
-        // if (fetchResponse.status != 200 || fetchResponse.body == null)
-        //     return Promise.reject("server unexpected response");
-        // const response = (await fetchResponse.json()) as ApiViewResponse;
-        const response = { viewmodelId: "123", widgetsData: { "xxxxx": { "text": "hello" } } };
+        const fetchResponse = await fetch("/api/view/" + viewName, {
+            method: "POST",
+            body: JSON.stringify({ "viewmodelId": viewmodelId })
+        });
+        if (fetchResponse.status != 200 || fetchResponse.body == null)
+            return Promise.reject("server unexpected response");
+        const response = (await fetchResponse.json()) as ApiViewResponse;
+        // const response = { viewmodelId: "123", widgetsData: { "xxxxx": { "text": "hello" } } };
         viewmodelId.value = response.viewmodelId;
         applyWidgetsData(response.widgetsData);
     };

@@ -22,7 +22,7 @@ const routes = [
   },
   {
     path: '/',
-    redirect: "/view/ExampleView"
+    redirect: "/view/example"
   }
 ]
 

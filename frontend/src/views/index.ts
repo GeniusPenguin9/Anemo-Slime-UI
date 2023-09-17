@@ -1,6 +1,6 @@
 const views = {
-    "ExampleView": import("./Example.vue"),
-    "TestView": import("./Test.vue")
+    "example": import("./Example.vue"),
+    "test": import("./Test.vue")
 }
 
 export { views }

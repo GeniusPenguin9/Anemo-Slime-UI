@@ -2,8 +2,8 @@
   <v-container>
     <v-row>
       <h1>hello</h1>
-      <as-label text="test" widgetId="xxxxx"></as-label>
-      <as-button text="test" widgetId="yyyyy" />
+      <as-label text="test" widgetId="TextBox1"></as-label>
+      <as-button text="test" widgetId="AddButton1" />
     </v-row>
   </v-container>
 </template>

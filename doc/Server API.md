@@ -31,7 +31,7 @@ Request:
 ```
 
 Response:
-* Body: a json that contains viewModelId and widgets data
+* Body: a json that contains viewmodelId and widgets data
 ```
 {
     "viewmodelId": "xxxxxxxx", 

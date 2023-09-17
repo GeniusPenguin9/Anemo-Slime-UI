@@ -5,7 +5,7 @@ GET: /static/*
 --------------
 Static assets, html, css, js, etc
 
-GET: /api/view/{viewName}
+POST: /api/view/{viewName}
 --------------
 Create a view and viewmodel session, or attach a view to existing viewmodel session
 
@@ -23,10 +23,10 @@ Request:
 ```
 
 Response:
-* Body: a json that contains viewModelId and widgets data
+* Body: a json that contains viewmodelId and widgets data
 ```
 {
-    "viewModelId": "xxxxxxxx", 
+    "viewmodelId": "xxxxxxxx", 
     "widgetsData": [
         {
             "widgetId": "wwwwwwww",

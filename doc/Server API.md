@@ -1,7 +1,7 @@
 Anemo Slime Server API
 ======================
 
-GET: /static/*
+GET: /static/{resourceName}
 --------------
 Static assets, html, css, js, etc
 
@@ -26,14 +26,18 @@ Response:
 * Body: a json that contains viewmodelId and widgets data
 ```
 {
-    "viewmodelId": "xxxxxxxx", 
-    "widgetsData": [
-        {
-            "widgetId": "wwwwwwww",
-            "property": "text",
-            "value": "hello world"
+    "viewModelId": "xxxxxxxx", 
+    "widgetsData": {
+        // key is widget id
+        "wwwwwwww": {
+            "text": "hello",
+            "visible": true
+        },
+        "yyyyyyyy": {
+            "text": "morning",
+            "select": false
         }
-    ]
+    }
 }
 ```
 
@@ -60,12 +64,17 @@ Response:
 * Body: a json that contains widgets data
 ```
 {
-    "widgetsData": [
-        {
-            "widgetId": "wwwwwwww",
-            "property": "text",
-            "value": "hello world"
+    "viewModelId": "xxxxxxxx", 
+    "widgetsData": {
+        // key is widget id
+        "wwwwwwww": {
+            "text": "hello",
+            "visible": true
+        },
+        "yyyyyyyy": {
+            "text": "morning",
+            "select": false
         }
-    ]
+    }
 }
 ```

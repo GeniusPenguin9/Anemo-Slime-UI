@@ -1,11 +1,19 @@
 Anemo Slime Server API
 ======================
 
-GET: /static/{resourceName}
+GET: /index.html
 --------------
-Static assets, html, css, js, etc
+return static index.html
 
-GET: /api/view/{viewName}
+GET: /favicon.ico
+--------------
+return static favicon.ico
+
+GET: /assets
+--------------
+map to static assets folder
+
+POST: /api/view/{viewName}
 --------------
 Create a view and viewmodel session, or attach a view to existing viewmodel session
 
@@ -26,7 +34,7 @@ Response:
 * Body: a json that contains viewModelId and widgets data
 ```
 {
-    "viewModelId": "xxxxxxxx", 
+    "viewmodelId": "xxxxxxxx", 
     "widgetsData": {
         // key is widget id
         "wwwwwwww": {
@@ -64,7 +72,7 @@ Response:
 * Body: a json that contains widgets data
 ```
 {
-    "viewModelId": "xxxxxxxx", 
+    "viewmodelId": "xxxxxxxx", 
     "widgetsData": {
         // key is widget id
         "wwwwwwww": {

@@ -9,7 +9,7 @@ GET: /favicon.ico
 --------------
 return static favicon.ico
 
-GET: /assets
+GET: /assets/{fileName}
 --------------
 map to static assets folder
 

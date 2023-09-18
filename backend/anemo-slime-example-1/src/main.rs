@@ -1,4 +1,6 @@
-use actix_web::{  
+use actix_files::{Files, NamedFile};
+use actix_web::{
+    get,
     http::{
         header::{self, ContentType},
         Method, StatusCode,
@@ -42,6 +44,9 @@ async fn server_thread(gc2server_rx: Receiver<String>) -> io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(viewmodel_map.clone())
+            .service(index_html)
+            .service(favicon_ico)
+            .service(Files::new("/assets", "../../frontend/dist/assets"))
             .service(web::resource("/api/view/{viewName}").route(web::post().to(view)))
             .service(web::resource("/api/action").route(web::post().to(action)))
             .default_service(web::to(|| HttpResponse::Ok()))
@@ -124,6 +129,16 @@ async fn action(
             HttpResponse::Ok().json(as_response)
         }
     }
+}
+
+#[get("/index.html")]
+async fn index_html() -> Result<impl Responder> {
+    Ok(NamedFile::open("../../frontend/dist/index.html")?)
+}
+
+#[get("/favicon.ico")]
+async fn favicon_ico()  -> Result<impl Responder> {
+    Ok(NamedFile::open("../../frontend/dist/favicon.ico")?)
 }
 
 fn gc_thread(gc2server_tx: Sender<String>) {}

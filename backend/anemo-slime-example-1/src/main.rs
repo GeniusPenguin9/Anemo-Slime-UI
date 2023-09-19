@@ -1,3 +1,4 @@
+use actix_cors::Cors;
 use actix_files::{Files, NamedFile};
 use actix_web::{
     get,
@@ -42,6 +43,14 @@ async fn server_thread(gc2server_rx: Receiver<String>) -> io::Result<()> {
         Data::new(Mutex::new(HashMap::new()));
 
     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin("http://localhost:3000")
+            .allowed_origin("http://localhost:8080")
+            .allowed_methods(vec!["GET", "POST"])
+            .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT])
+            .allowed_header(header::CONTENT_TYPE)
+            .max_age(3600);
+
         App::new()
             .app_data(viewmodel_map.clone())
             .service(index_html)
@@ -49,6 +58,7 @@ async fn server_thread(gc2server_rx: Receiver<String>) -> io::Result<()> {
             .service(Files::new("/assets", "../../frontend/dist/assets"))
             .service(web::resource("/api/view/{viewName}").route(web::post().to(view)))
             .service(web::resource("/api/action").route(web::post().to(action)))
+            .wrap(cors)
             .default_service(web::to(|| HttpResponse::Ok()))
     })
     .bind(("127.0.0.1", 8080))?
@@ -131,13 +141,13 @@ async fn action(
     }
 }
 
-#[get("/index.html")]
+#[get("/")]
 async fn index_html() -> Result<impl Responder> {
     Ok(NamedFile::open("../../frontend/dist/index.html")?)
 }
 
 #[get("/favicon.ico")]
-async fn favicon_ico()  -> Result<impl Responder> {
+async fn favicon_ico() -> Result<impl Responder> {
     Ok(NamedFile::open("../../frontend/dist/favicon.ico")?)
 }
 

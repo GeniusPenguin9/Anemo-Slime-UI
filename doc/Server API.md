@@ -1,7 +1,7 @@
 Anemo Slime Server API
 ======================
 
-GET: /index.html
+GET: /
 --------------
 return static index.html
 

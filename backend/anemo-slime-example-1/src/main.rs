@@ -108,11 +108,10 @@ async fn action(
                 if let ViewmodelState::Idle(viewmodel) = &mut operating_viewmodel_state {
                     viewmodel
                         .widgets_data
-                        .get("TextBox1")
+                        .get_mut("TextBox1")
                         .map_or("0".to_string(), |v| {
-                            let mut str = v.text.as_ref().unwrap().clone();
-                            str.push('1');
-                            str
+                            (*v).append_text();
+                            v.text.as_ref().unwrap().clone()
                         })
                 } else {
                     "0".to_string()
@@ -166,6 +165,12 @@ impl ExampleViewModel {
 
     fn uuid_string() -> String {
         Uuid::new_v4().to_string()
+    }
+
+    fn click(&mut self) {
+        self.widgets_data
+            .get_mut("TextBox1")
+            .map(|w| (*w).append_text());
     }
 }
 
@@ -230,6 +235,10 @@ impl WidgetParameters {
             visible: None,
             select: Some(select),
         }
+    }
+
+    fn append_text(&mut self) {
+        self.text.as_mut().map(|t| t.push('1'));
     }
 }
 

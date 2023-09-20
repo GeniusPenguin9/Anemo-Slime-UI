@@ -1,5 +1,6 @@
 import { useRoute } from 'vue-router';
 import { Ref, onMounted, ref, inject, computed, reactive, onActivated } from 'vue';
+const SERVER_URL = import.meta.env.VITE_SERVER_URL;
 
 interface ApiViewResponse {
     viewmodelId: string,
@@ -19,13 +20,14 @@ export function initializeWidget(props: any) {
         Object.assign(widgetsData, newWdgetsData);
     }
 
-    const postAction = async (type: string, data: any = undefined) => {
-        const fetchResponse = await fetch("/api/action", {
+    const postAction = async (type: string, data: any = {}) => {
+        const fetchResponse = await fetch(SERVER_URL + "/api/action", {
             method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 "viewmodelId": viewmodelId.value,
                 "widgetId": widgetId,
-                "type": type,
+                "actionType": type,
                 "data": data
             })
         });
@@ -41,7 +43,6 @@ export function initializeWidget(props: any) {
 
 export function initializeView() {
     const route = useRoute();
-    const viewName = route.params.viewName;
     const viewmodelId = ref("");
     const widgetsData = reactive({});
 
@@ -50,9 +51,10 @@ export function initializeView() {
     }
 
     const mounted = async () => {
-        const fetchResponse = await fetch("/api/view/" + viewName, {
+        const fetchResponse = await fetch(SERVER_URL + "/api/view/" + (route.name as string), {
             method: "POST",
-            body: JSON.stringify({ "viewmodelId": viewmodelId })
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({})
         });
         if (fetchResponse.status != 200 || fetchResponse.body == null)
             return Promise.reject("server unexpected response");

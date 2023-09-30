@@ -6,8 +6,6 @@
 
 // Components
 import App from './App.vue'
-import AsButton from "./components/AsButton.vue"
-import AsLabel from "./components/AsLabel.vue"
 
 // Composables
 import { createApp } from 'vue'
@@ -19,7 +17,4 @@ const app = createApp(App)
 
 registerPlugins(app)
 
-app
-    .component("AsButton", AsButton)
-    .component("AsLabel", AsLabel)
-    .mount('#app')
+app.mount('#app')

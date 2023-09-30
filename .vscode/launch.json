@@ -5,18 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "frontend",
+            "type": "chrome",
             "request": "launch",
-            "runtimeArgs": [
-                "run-script",
-                "dev"
-            ],
-            "runtimeExecutable": "npm",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "cwd": "${workspaceFolder}/frontend",
-            "type": "node"
+            "name": "js",
+            "url": "http://localhost:3000",
+            "webRoot": "${workspaceFolder}/frontend/"
         }
     ]
 }

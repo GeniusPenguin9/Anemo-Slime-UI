@@ -22,9 +22,10 @@ use std::{
     },
 };
 use std::{io, mem, thread, vec};
-use uuid::Uuid;
+mod mvvm_core;
 mod user_example;
-use user_example::{ExampleResourceManager, ResourceManager};
+use mvvm_core::ResourceManager;
+use user_example::ExampleResourceManager;
 
 fn main() {
     let (gc2server_tx, gc2server_rx) = mpsc::channel();
@@ -154,7 +155,7 @@ async fn action(
                 registered_resource_manager_state,
                 &mut operating_resource_manager_state,
             );
-            
+
             HttpResponse::Ok().json(response_body)
         }
     }

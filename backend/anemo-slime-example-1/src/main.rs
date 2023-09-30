@@ -11,6 +11,7 @@ use actix_web::{
     App, Either, HttpRequest, HttpResponse, HttpServer, Responder, Result,
 };
 use serde::{Deserialize, Serialize};
+use std::any::{Any, TypeId};
 use std::{
     collections::HashMap,
     hash::Hash,
@@ -22,6 +23,8 @@ use std::{
 };
 use std::{io, mem, thread, vec};
 use uuid::Uuid;
+mod user_example;
+use user_example::{ExampleResourceManager, ResourceManager};
 
 fn main() {
     let (gc2server_tx, gc2server_rx) = mpsc::channel();
@@ -30,16 +33,16 @@ fn main() {
         gc_thread(gc2server_tx);
     });
 
-    server_thread(gc2server_rx);
+    let _ = server_thread(gc2server_rx);
 }
 
 #[actix_web::main]
-async fn server_thread(gc2server_rx: Receiver<String>) -> io::Result<()> {
+async fn server_thread(_gc2server_rx: Receiver<String>) -> io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     log::info!("starting HTTP server at http://localhost:8080");
 
-    let viewmodel_map: Data<Mutex<HashMap<String, ViewmodelState>>> =
+    let reource_managers: Data<Mutex<HashMap<String, ResourceManagerState>>> =
         Data::new(Mutex::new(HashMap::new()));
 
     HttpServer::new(move || {
@@ -52,7 +55,7 @@ async fn server_thread(gc2server_rx: Receiver<String>) -> io::Result<()> {
             .max_age(3600);
 
         App::new()
-            .app_data(viewmodel_map.clone())
+            .app_data(reource_managers.clone())
             .service(index_html)
             .service(favicon_ico)
             .service(Files::new("/assets", "../../frontend/dist/assets"))
@@ -66,8 +69,9 @@ async fn server_thread(gc2server_rx: Receiver<String>) -> io::Result<()> {
     .run()
     .await
 }
+
 async fn view(
-    viewmodel_map: Data<Mutex<HashMap<String, ViewmodelState>>>,
+    resource_managers: Data<Mutex<HashMap<String, ResourceManagerState>>>,
     path_params: web::Path<String>,
     body: web::Json<ViewRequestBody>,
 ) -> HttpResponse {
@@ -76,22 +80,32 @@ async fn view(
         "example" => match body.0.viewmodel_id {
             None => {
                 log::info!("call view without viewmodel_id");
-                let viewmodel = ExampleViewModel::new();
-                let viewmodel_id = viewmodel.viewmodel_id.clone();
-                let viewmodel_clone = viewmodel.clone();
 
-                (*viewmodel_map.lock().unwrap())
-                    .insert(viewmodel_id.clone(), ViewmodelState::Idle(viewmodel));
+                let resource_manager = ExampleResourceManager::new();
+                let viewmodel_id = resource_manager.get_viewmodel_id();
+                let response_body =
+                    generate_base_response_body(&resource_manager, viewmodel_id.clone()).await;
 
-                HttpResponse::Ok().json(viewmodel_clone)
+                (*resource_managers.lock().unwrap()).insert(
+                    viewmodel_id.clone(),
+                    ResourceManagerState::Idle(
+                        Box::new(resource_manager) as Box<dyn ResourceManager + Send>
+                    ),
+                );
+                HttpResponse::Ok().json(response_body)
             }
             Some(viewmodel_id) => {
                 log::info!("call view with viewmodel_id {}", viewmodel_id);
-                match (*viewmodel_map.lock().unwrap()).get(&viewmodel_id) {
+                match (*resource_managers.lock().unwrap()).get(&viewmodel_id) {
                     None => HttpResponse::NotFound().finish(),
-                    Some(_) => HttpResponse::Ok()
-                        .content_type(ContentType::plaintext())
-                        .body(format!("viewmodel_id = {}", viewmodel_id)),
+                    Some(ResourceManagerState::Busy) => HttpResponse::TooManyRequests().finish(),
+                    Some(ResourceManagerState::Idle(resource_manager)) => HttpResponse::Ok().json(
+                        generate_base_response_body(
+                            resource_manager.as_ref(),
+                            viewmodel_id.clone(),
+                        )
+                        .await,
+                    ),
                 }
             }
         },
@@ -99,48 +113,54 @@ async fn view(
     }
 }
 
+async fn generate_base_response_body(
+    resource_manager: &dyn ResourceManager,
+    viewmodel_id: String,
+) -> BaseResponseBody {
+    let widgets_data = resource_manager.get_widgets_data();
+    BaseResponseBody {
+        viewmodel_id,
+        widgets_data,
+    }
+}
+
 async fn action(
-    viewmodel_map: Data<Mutex<HashMap<String, ViewmodelState>>>,
+    resource_managers: Data<Mutex<HashMap<String, ResourceManagerState>>>,
     body: web::Json<ActionRequestBody>,
 ) -> HttpResponse {
     let viewmodel_id = body.0.viewmodel_id;
-    log::info!("get {} from action request", &viewmodel_id);
-    match (*viewmodel_map.lock().unwrap()).get_mut(&viewmodel_id) {
+    log::info!("get viewmodel id {} from action request", &viewmodel_id);
+    match (*resource_managers.lock().unwrap()).get_mut(&viewmodel_id) {
         None => HttpResponse::NotFound().finish(),
-        Some(ViewmodelState::Busy) => {
+        Some(ResourceManagerState::Busy) => {
             HttpResponse::InternalServerError().body(format!("{:?} busy", viewmodel_id))
         }
-        Some(registered_viewmodel_state) => {
-            let mut operating_viewmodel_state = ViewmodelState::Busy;
-            mem::swap(registered_viewmodel_state, &mut operating_viewmodel_state);
-
-            let return_value: String =
-                if let ViewmodelState::Idle(viewmodel) = &mut operating_viewmodel_state {
-                    viewmodel
-                        .widgets_data
-                        .get_mut("TextBox1")
-                        .map_or("0".to_string(), |v| {
-                            (*v).append_text();
-                            v.text.as_ref().unwrap().clone()
-                        })
-                } else {
-                    "0".to_string()
-                };
-            let as_response = BaseResponseBody {
-                viewmodel_id,
-                widgets_data: HashMap::from([(
-                    "TextBox1".to_string(),
-                    WidgetParameters::new_with_text(return_value),
-                )]),
+        Some(registered_resource_manager_state) => {
+            let mut operating_resource_manager_state = ResourceManagerState::Busy;
+            mem::swap(
+                registered_resource_manager_state,
+                &mut operating_resource_manager_state,
+            );
+            let response_body = if let ResourceManagerState::Idle(resource_manager) =
+                &mut operating_resource_manager_state
+            {
+                resource_manager.perform_action(body.0.widget_id, body.0.action_type, body.0.data);
+                generate_base_response_body(resource_manager.as_ref(), viewmodel_id.clone()).await
+            } else {
+                panic!()
             };
 
-            mem::swap(registered_viewmodel_state, &mut operating_viewmodel_state);
-            HttpResponse::Ok().json(as_response)
+            mem::swap(
+                registered_resource_manager_state,
+                &mut operating_resource_manager_state,
+            );
+            
+            HttpResponse::Ok().json(response_body)
         }
     }
 }
 
-#[get("/")]
+#[get("/index.html")]
 async fn index_html() -> Result<impl Responder> {
     Ok(NamedFile::open("../../frontend/dist/index.html")?)
 }
@@ -150,43 +170,10 @@ async fn favicon_ico() -> Result<impl Responder> {
     Ok(NamedFile::open("../../frontend/dist/favicon.ico")?)
 }
 
-fn gc_thread(gc2server_tx: Sender<String>) {}
+fn gc_thread(_gc2server_tx: Sender<String>) {}
 
-#[derive(Debug, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct ExampleViewModel {
-    viewmodel_id: String,
-    widgets_data: HashMap<String, WidgetParameters>,
-}
-
-impl ExampleViewModel {
-    fn new() -> Self {
-        let mut widgets_data = HashMap::new();
-        widgets_data.insert("AddButton1".to_string(), WidgetParameters::new());
-        widgets_data.insert(
-            "TextBox1".to_string(),
-            WidgetParameters::new_with_text("0".to_string()),
-        );
-        ExampleViewModel {
-            viewmodel_id: Self::uuid_string(),
-            widgets_data,
-        }
-    }
-
-    fn uuid_string() -> String {
-        Uuid::new_v4().to_string()
-    }
-
-    fn click(&mut self) {
-        self.widgets_data
-            .get_mut("TextBox1")
-            .map(|w| (*w).append_text());
-    }
-}
-
-#[derive(Debug)]
-enum ViewmodelState {
-    Idle(ExampleViewModel),
+enum ResourceManagerState {
+    Idle(Box<dyn ResourceManager + Send>),
     Busy,
 }
 
@@ -213,9 +200,10 @@ struct ActionRequestBody {
 #[serde(rename_all = "camelCase")]
 struct BaseResponseBody {
     viewmodel_id: String,
-    widgets_data: HashMap<String, WidgetParameters>,
+    widgets_data: HashMap<String, HashMap<String, String>>,
 }
 
+// =========================================== test ===========================================
 #[derive(Serialize, Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct WidgetParameters {
@@ -224,35 +212,6 @@ struct WidgetParameters {
     select: Option<bool>,
 }
 
-impl WidgetParameters {
-    fn new() -> Self {
-        WidgetParameters {
-            text: None,
-            visible: None,
-            select: None,
-        }
-    }
-    fn new_with_text(text: String) -> Self {
-        WidgetParameters {
-            text: Some(text),
-            visible: None,
-            select: None,
-        }
-    }
-    fn new_with_select(select: bool) -> Self {
-        WidgetParameters {
-            text: None,
-            visible: None,
-            select: Some(select),
-        }
-    }
-
-    fn append_text(&mut self) {
-        self.text.as_mut().map(|t| t.push('1'));
-    }
-}
-
-// =========================================== test ===========================================
 #[test]
 fn test_deserialize_hashmap() {
     let json = r#"{

@@ -1,4 +1,4 @@
-use super::mvvm_core::{ASView, ASViewModel, ASWidget, Button, ResourceManager, TextBox};
+use super::mvvm_core::{ASString, ASView, ASViewModel, ASWidget, Button, ResourceManager, TextBox};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -11,9 +11,13 @@ impl ExampleResourceManager {
     pub fn new() -> Self {
         let click_fn: Box<dyn (Fn(&mut ExampleViewModel) -> Result<(), String>) + Send> =
             Box::new(ExampleViewModel::add_value);
+
+        let content_fn: Box<dyn (Fn(&ExampleViewModel) -> Result<String, String>) + Send> =
+            Box::new(ExampleViewModel::get_custom_number);
+
         let user_widgets: Vec<Box<dyn ASWidget<ExampleViewModel>>> = vec![
-            Box::new(TextBox::new()),
-            Box::new(Button::<ExampleViewModel>::new_with_click(click_fn)),
+            Box::new(TextBox::new().content(ASString::ViewModel2View(content_fn))),
+            Box::new(Button::<ExampleViewModel>::new().click(click_fn)),
         ];
 
         ExampleResourceManager {
@@ -31,7 +35,10 @@ impl ResourceManager for ExampleResourceManager {
     fn get_widgets_data(&self) -> HashMap<String, HashMap<String, String>> {
         let mut widgets = HashMap::new();
         for (widget_id, widget) in self.view.widgets.iter() {
-            widgets.insert(widget_id.clone(), widget.get_widget_parameters());
+            widgets.insert(
+                widget_id.clone(),
+                widget.get_widget_parameters(&self.viewmodel),
+            );
         }
         widgets
     }
@@ -81,6 +88,13 @@ impl ExampleViewModel {
         );
 
         Ok(())
+    }
+
+    fn get_custom_number(&self) -> Result<String, String> {
+        log::info!(">> ExampleViewModel#get_custom_number");
+
+        log::info!("current custom_number = {}", self.custom_number);
+        Ok(self.custom_number.to_string())
     }
 }
 impl ASViewModel for ExampleViewModel {}

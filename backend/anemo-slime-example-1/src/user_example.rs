@@ -1,7 +1,12 @@
-use super::mvvm_core::{ASString, ASView, ASViewModel, ASWidget, Button, ResourceManager, TextBox};
+use super::mvvm_core::{ASType, ASView, ASViewModel, ASWidget, Button, ResourceManager, TextBox};
 use std::collections::HashMap;
 use uuid::Uuid;
 
+/**
+ * Example UI page contains 1 button and 1 text box. 
+ * The init value of text box is 0.
+ * When user click button, text box value += 1.
+ */
 pub struct ExampleResourceManager {
     viewmodel: ExampleViewModel,
     view: ExampleView,
@@ -9,14 +14,14 @@ pub struct ExampleResourceManager {
 
 impl ExampleResourceManager {
     pub fn new() -> Self {
-        let click_fn: Box<dyn (Fn(&mut ExampleViewModel) -> Result<(), String>) + Send> =
+        let click_fn: Box<dyn (Fn(&mut ExampleViewModel, HashMap<String,String>) -> Result<(), String>) + Send> =
             Box::new(ExampleViewModel::add_value);
 
         let content_fn: Box<dyn (Fn(&ExampleViewModel) -> Result<String, String>) + Send> =
             Box::new(ExampleViewModel::get_custom_number);
 
         let user_widgets: Vec<Box<dyn ASWidget<ExampleViewModel>>> = vec![
-            Box::new(TextBox::new().content(ASString::ViewModel2View(content_fn))),
+            Box::new(TextBox::new().content(ASType::ViewModel2View(content_fn))),
             Box::new(Button::<ExampleViewModel>::new().click(click_fn)),
         ];
 
@@ -77,7 +82,7 @@ impl ExampleViewModel {
         }
     }
 
-    fn add_value(&mut self) -> Result<(), String> {
+    fn add_value(&mut self, _date: HashMap<String, String>) -> Result<(), String> {
         log::info!(">> ExampleViewModel#add_value");
 
         log::info!("current custom_number = {}", self.custom_number);
@@ -93,7 +98,7 @@ impl ExampleViewModel {
     fn get_custom_number(&self) -> Result<String, String> {
         log::info!(">> ExampleViewModel#get_custom_number");
 
-        log::info!("current custom_number = {}", self.custom_number);
+        log::info!("<< ExampleViewModel#get_custom_number, current custom_number = {}", self.custom_number);
         Ok(self.custom_number.to_string())
     }
 }

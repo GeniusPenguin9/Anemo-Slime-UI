@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 use uuid::Uuid;
 
 // =================================== ResourceManager ===================================
@@ -25,7 +25,7 @@ pub struct Button<TViewModel: ASViewModel> {
     width: u32,
     height: u32,
     label: String,
-    click: Option<Box<dyn (Fn(&mut TViewModel) -> Result<(), String>) + Send>>,
+    click: ASType<TViewModel, IgnoreValue>,
 }
 
 impl<TViewModel: ASViewModel> Button<TViewModel> {
@@ -36,15 +36,17 @@ impl<TViewModel: ASViewModel> Button<TViewModel> {
             width: 50,
             height: 50,
             label: String::from("Button"),
-            click: None,
+            click: ASType::Default,
         }
     }
 
     pub fn click(
         mut self,
-        click_fn: Box<dyn (Fn(&mut TViewModel) -> Result<(), String>) + Send>,
+        click_fn: Box<
+            dyn (Fn(&mut TViewModel, HashMap<String, String>) -> Result<(), String>) + Send,
+        >,
     ) -> Self {
-        self.click = Some(click_fn);
+        self.click = ASType::View2ViewModel(click_fn);
         self
     }
 }
@@ -53,14 +55,14 @@ impl<TViewModel: ASViewModel> ASWidget<TViewModel> for Button<TViewModel> {
     fn perform_action(
         &self,
         action_type: String,
-        _data: HashMap<String, String>,
+        data: HashMap<String, String>,
         viewmodel: &mut TViewModel,
     ) {
         log::info!(">> Button#perform_action");
         match action_type.as_str() {
             "click" => {
-                if let Some(f) = self.click.as_ref() {
-                    let _ = f(viewmodel); // TODO: should return Result<>
+                if let ASType::View2ViewModel(click_fn) = &self.click {
+                    let _ = click_fn(viewmodel, data); // TODO: should return Result<>
                 }
             }
             _ => (),
@@ -80,45 +82,38 @@ impl<TViewModel: ASViewModel> ASWidget<TViewModel> for Button<TViewModel> {
     }
 }
 
-pub struct TextBox<TViewModel: ASViewModel> {
+pub struct TextBox<TViewModel: ASViewModel, TValue: Display + Send> {
     widget_id: String,
-    content: ASString<TViewModel>,
+    content: ASType<TViewModel, TValue>,
 }
 
-pub enum ASString<TViewModel: ASViewModel> {
-    Default,
-    StaticString(String),
-    // if viewmodel change, it should affect view
-    ViewModel2View(Box<dyn (Fn(&TViewModel) -> Result<String, String>) + Send>),
-    // if view change, it should affect view model.
-    View2ViewModel(),
-}
-
-impl<TViewModel: ASViewModel> TextBox<TViewModel> {
+impl<TViewModel: ASViewModel, TValue: Display + Send> TextBox<TViewModel, TValue> {
     pub fn new() -> Self {
         TextBox {
             widget_id: Uuid::new_v4().to_string(),
-            content: ASString::Default,
+            content: ASType::Default,
         }
     }
 
-    pub fn content(mut self, user_content: ASString<TViewModel>) -> Self {
+    pub fn content(mut self, user_content: ASType<TViewModel, TValue>) -> Self {
         self.content = user_content;
         self
     }
 }
 
-impl<TViewModel: ASViewModel> ASWidget<TViewModel> for TextBox<TViewModel> {
+impl<TViewModel: ASViewModel, TValue: Display + Send> ASWidget<TViewModel>
+    for TextBox<TViewModel, TValue>
+{
     fn get_widget_id(&self) -> String {
         self.widget_id.clone()
     }
 
     fn get_widget_parameters(&self, viewmodel: &TViewModel) -> HashMap<String, String> {
         match &self.content {
-            ASString::Default => HashMap::from([("content".to_string(), "".to_string())]),
-            ASString::StaticString(s) => HashMap::from([("content".to_string(), s.clone())]),
-            ASString::ViewModel2View(f) => match f(viewmodel) {
-                Ok(res) => HashMap::from([("content".to_string(), res)]),
+            ASType::Default => HashMap::from([("content".to_string(), "".to_string())]),
+            ASType::Static(s) => HashMap::from([("content".to_string(), s.to_string())]),
+            ASType::ViewModel2View(f) => match f(viewmodel) {
+                Ok(res) => HashMap::from([("content".to_string(), res.to_string())]),
                 Err(err) => HashMap::from([("content".to_string(), format!("Error : {err}"))]),
             },
             _ => HashMap::from([("content".to_string(), "unknown".to_string())]),
@@ -140,3 +135,22 @@ pub trait ASWidget<TViewModel: ASViewModel>: Send {
 
     fn get_widget_parameters(&self, viewmodel: &TViewModel) -> HashMap<String, String>;
 }
+
+pub enum ASType<TViewModel: ASViewModel, TValue: Display + Send> {
+    Default,
+    Static(TValue),
+    // if viewmodel change, it should affect view
+    ViewModel2View(Box<dyn (Fn(&TViewModel) -> Result<TValue, String>) + Send>),
+    // if view change, it should affect view model.
+    View2ViewModel(
+        Box<dyn (Fn(&mut TViewModel, HashMap<String, String>) -> Result<(), String>) + Send>,
+    ),
+}
+
+pub struct IgnoreValue;
+impl Display for IgnoreValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "")
+    }
+}
+unsafe impl Send for IgnoreValue {}
